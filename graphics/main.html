@@ -1,0 +1,132 @@
+<html>
+<head>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+	<style>
+		@font-face {
+			font-family: 'Gotham';
+			src: url('fonts/Gotham-Black.woff') format("woff");
+			font-weight: normal;
+			font-style: normal;
+		}
+		@font-face {
+			font-family: 'GothamM';
+			src: url('fonts/GOTHAM-MEDIUM.woff') format("woff");
+			font-weight: normal;
+			font-style: normal;
+		}
+
+		p {
+			font-family: 'Gotham';
+			font-size: 35px;
+			color: white;
+			margin: 0;
+			text-shadow: 0px 0px 3px #000000;
+			text-align: center;
+		}
+
+		#dialog {
+			position: absolute;
+			top: 0;
+			left: 0;
+			clip-path: inset(10px, 20px, 30px, 40px);
+			width: 900px;
+			height: 1080px;
+		}
+
+		body {
+			background-color: #101015;
+		}
+	</style>
+	<script type="text/javascript">
+		var startingFontSizes = {}
+		function setText(target, text) {
+			var desiredWidth = $(target).parent().width();
+			var targetElement = $(target)
+			var resizer = $("#hidden-resizer")
+			var maxFontSize = startingFontSizes[target]
+			if (maxFontSize === undefined) {
+				maxFontSize = targetElement.css("font-size")
+				startingFontSizes[target] = maxFontSize
+			}
+			resizer.html(text)
+			resizer.css("font-size", maxFontSize)
+			resizer.css("font-family", targetElement.css("font-family"))
+
+			var size = 0
+			while(resizer.width() > desiredWidth) {
+				size = parseInt(resizer.css("font-size"), 10);
+				resizer.css("font-size", size - 1);
+			}
+			size = parseInt(resizer.css("font-size"), 10);
+			resizer.css("font-size", size - 1);
+			targetElement.css("font-size", size).html(resizer.html());
+		}
+		function getTextSize(fontSize, fontFamily, text) {
+			var resizer = $("#hidden-resizer")
+			resizer.html(text)
+			resizer.css("font-size", fontSize)
+			resizer.css("font-family", fontFamily)
+
+			return resizer.width()
+		}
+		$(document).ready(function () {
+			$('<div />', {id: 'hidden-resizer'}).hide().appendTo(document.body);
+			nodecg.sendMessage("StateRequest")
+		})
+		nodecg.listenFor("transcriptAdd", (add) => {
+			if ($(".line").length == 0) {
+				newLine()
+			}
+			var existing = $(".line").last().text()
+			if (getTextSize(35, "Gotham", existing + add) > 900) {
+				newLine()
+			}
+
+			$(".line").last().text($(".line").last().text() + add)
+		})
+
+		function newLine() {
+			$("#dialog").append("<p class='line'></p>")
+			$(".line").each(function (index) {
+				$(this).css({
+					position: "absolute",
+					top: (index * 40) + "px"
+				})
+			})
+			scrollLines()
+		}
+
+		function scrollLines() {
+			var lineCount = $(".line").length
+			if (lineCount > 3) {
+				$("#dialog").animate({
+					top: -40 + "px"
+				}, 1000 / (lineCount - 3), function () {
+					$("#dialog").css({ top: 0 })
+					$(".line").first().remove()
+					$(".line").each(function (index) {
+						$(this).css({
+							position: "absolute",
+							top: (index * 40) + "px"
+						})
+					})
+				})
+			}
+		}
+		nodecg.listenFor("StateUpdate", (remoteState) => {
+			if (remoteState.socketId == undefined || remoteState.socketId !== nodecg.socket.id) {
+				for (key in remoteState) {
+					if (remoteState[key] !== undefined) {
+						var element = $("#" + key)
+						if (element.is("input")) element.val(remoteState[key])
+							if (element.is("p")) setText("#" + key, remoteState[key])
+						}
+				}
+			}
+		})
+	</script>
+</head>
+<body>
+	<div id="dialog"></div>
+</body>
+</html>

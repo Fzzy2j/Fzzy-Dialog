@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+<head>
+    <meta charset="UTF-8">
+	<style>
+		@font-face {
+        	font-family: "Metronic Pro";
+        	src: url("font/MetronicPro.ttf");
+    	}
+
+		p {
+        	font-family: "Metronic Pro";
+			margin: 0;
+		}
+
+		#leftScore {
+			width: 30px;
+		}
+
+		#rightScore {
+			width: 30px;
+		}
+
+		input {
+			margin-bottom: 10px;
+			width: 250px;
+        	font-family: "Metronic Pro";
+        	font-size: 20px;
+		}
+
+		select {
+			margin-bottom: 10px;
+			width: 250px;
+        	font-family: "Metronic Pro";
+        	font-size: 20px;
+		}
+
+		button {
+        	font-family: "Metronic Pro";
+        	font-size: 20px;
+			margin-bottom: 10px;
+		}
+	</style>
+</head>
+<body>
+	<button onclick="startFzzy()">START</button>
+	<input id="manualSend" type="text" autocomplete="off">
+	<p id="transcript"></p>
+
+	<script>
+		$(document).ready(function() {
+			nodecg.sendMessage("StateRequest")
+		})
+		nodecg.listenFor("StateUpdate", (remoteState) => {
+			if (remoteState.socketId == undefined || remoteState.socketId !== nodecg.socket.id) {
+				for (key in remoteState) {
+					if (remoteState[key] !== undefined) {
+						var element = $("#" + key)
+						if (element.is("input")) element.val(remoteState[key])
+						if (element.is("p")) element.text(remoteState[key])
+					}
+				}
+			}
+		})
+
+		const SpeechRecognition = window.SpeechRecognition || webkitSpeechRecognition;
+		const recognition = new SpeechRecognition();
+		recognition.continuous = true;
+		recognition.lang = "en-US";
+		recognition.interimResults = true;
+		recognition.maxAlternatives = 1;
+		var lastTranscript = ""
+		recognition.onresult = (event) => {
+			var text = ""
+			for (var i = 0; i < event.results.length; i++) {
+				text += event.results[i][0].transcript
+			}
+			text = text.replaceAll("'", "")
+			text = text.toLowerCase()
+			var diff = text.substring(lastTranscript.length)
+			nodecg.sendMessage("transcriptAdd", diff)
+			lastTranscript = text;
+		}
+		recognition.addEventListener("end", recognition.start);
+		function startFzzy() {
+			recognition.start()
+		}
+		$("input").on("keypress", function(e) {
+			if (e.which == 13) {
+				nodecg.sendMessage("transcriptAdd", $("#manualSend").val())
+			}
+		})
+	</script>
+</body>
+</html>
